@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adsApi, MODERATION_REASONS, type ModerationReason } from '../shared/api/ads';
-import type { AdsListResponse, Advertisement, ModerationAction } from '../shared/types';
+import type { Advertisement, ModerationAction } from '../shared/types';
 import { formatDate, formatDateTime, formatPrice } from '../shared/utils/format';
 
 type ActionMode = 'idle' | 'reject' | 'requestChanges';
@@ -89,9 +89,11 @@ function imagesWithFallback(images: string[]) {
 
 function ItemPage() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const adId = Number(id);
+  const backTo = (location.state as { from?: string } | null)?.from ?? '/list';
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['ad', adId],
@@ -99,15 +101,30 @@ function ItemPage() {
     queryFn: ({ signal }) => adsApi.get(adId, signal),
   });
 
-  const listQueries = queryClient.getQueriesData<AdsListResponse>({ queryKey: ['ads'] });
+  // Загружаем полный список объявлений для навигации (без пагинации)
+  const allAdsQuery = useQuery({
+    queryKey: ['ads', 'all-for-navigation'],
+    queryFn: ({ signal }) =>
+      adsApi.list(
+        {
+          page: 1,
+          limit: 500,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        },
+        signal,
+      ),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const prevNext = useMemo(() => {
-    const ids = listQueries.flatMap(([, value]) => value?.ads ?? []).map((ad) => ad.id);
+    const ids = allAdsQuery.data?.ads.map((ad) => ad.id) ?? [];
     const index = ids.indexOf(adId);
     return {
       prevId: index > 0 ? ids[index - 1] : null,
       nextId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
     };
-  }, [adId, listQueries]);
+  }, [adId, allAdsQuery.data]);
 
   const [actionMode, setActionMode] = useState<ActionMode>('idle');
   const [reason, setReason] = useState<ModerationReason>(MODERATION_REASONS[0]);
@@ -160,21 +177,23 @@ function ItemPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate(`/item/${prevNext.prevId}`)}
-            disabled={!prevNext.prevId}
+            onClick={() =>
+              prevNext.prevId && navigate(`/item/${prevNext.prevId}`, { state: { from: backTo } })
+            }
+            disabled={!prevNext.prevId || allAdsQuery.isLoading}
             className="rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40"
           >
             ← Предыдущее
           </button>
           <button
-            onClick={() => navigate(`/item/${prevNext.nextId}`)}
-            disabled={!prevNext.nextId}
+            onClick={() => prevNext.nextId && navigate(`/item/${prevNext.nextId}`, { state: { from: backTo } })}
+            disabled={!prevNext.nextId || allAdsQuery.isLoading}
             className="rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40"
           >
             Следующее →
           </button>
           <Link
-            to="/list"
+            to={backTo}
             className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Назад к списку

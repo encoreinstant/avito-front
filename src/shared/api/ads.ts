@@ -36,8 +36,12 @@ export function buildQueryString(params: AdsQueryParams) {
 
   if (params.page) searchParams.set('page', String(params.page));
   if (params.limit) searchParams.set('limit', String(params.limit));
-  if (params.status?.length) searchParams.set('status', params.status.join(','));
-  if (params.categoryId) searchParams.set('categoryId', String(params.categoryId));
+  if (params.status?.length) {
+    params.status.forEach((s) => searchParams.append('status', s));
+  }
+  if (params.categoryId !== undefined && params.categoryId !== null) {
+    searchParams.set('categoryId', String(params.categoryId));
+  }
   if (params.minPrice !== undefined) searchParams.set('minPrice', String(params.minPrice));
   if (params.maxPrice !== undefined) searchParams.set('maxPrice', String(params.maxPrice));
   if (params.search) searchParams.set('search', params.search);
@@ -49,10 +53,19 @@ export function buildQueryString(params: AdsQueryParams) {
 }
 
 export const adsApi = {
-  list: (params: AdsQueryParams, signal?: AbortSignal) =>
-    httpClient.get<AdsListResponse>(`/ads${buildQueryString(params)}`, { signal }),
-  get: (id: number, signal?: AbortSignal) =>
-    httpClient.get<Advertisement>(`/ads/${id}`, { signal }),
+  list: async (params: AdsQueryParams, signal?: AbortSignal) => {
+    const res = await httpClient.get<AdsListResponse>(`/ads${buildQueryString(params)}`, {
+      signal,
+    });
+    return {
+      ...res,
+      ads: res.ads.map(normalizeAd),
+    };
+  },
+  get: async (id: number, signal?: AbortSignal) => {
+    const ad = await httpClient.get<Advertisement>(`/ads/${id}`, { signal });
+    return normalizeAd(ad);
+  },
   approve: (id: number, signal?: AbortSignal) =>
     httpClient.post<{ message: string; ad: Advertisement }>(`/ads/${id}/approve`, undefined, {
       signal,
@@ -76,3 +89,9 @@ export const adsApi = {
       { signal },
     ),
 };
+
+function normalizeAd(ad: Advertisement): Advertisement {
+  // Сервер ставит draft при возврате на доработку, считаем его "pending"
+  const normalizedStatus: AdStatus = ad.status === 'draft' ? 'pending' : ad.status;
+  return { ...ad, status: normalizedStatus };
+}
