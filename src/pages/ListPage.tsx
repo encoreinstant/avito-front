@@ -35,6 +35,8 @@ const DEFAULT_FILTERS: Filters = {
   limit: 10,
 };
 
+const FILTERS_STORAGE_KEY = "listFilters";
+
 const statusOptions: { value: AdStatus; label: string }[] = [
   { value: "pending", label: "На модерации" },
   { value: "approved", label: "Одобрено" },
@@ -283,26 +285,60 @@ function ListPage() {
   const parseFiltersFromSearch = (): Filters => {
     const params: Filters = { ...DEFAULT_FILTERS };
     const fromParams: Partial<Filters> = {};
+    let hasParams = false;
     const statusesRaw = searchParams.get("status");
     if (statusesRaw) {
       const list = statusesRaw.split(",").filter(Boolean) as AdStatus[];
-      if (list.length) fromParams.statuses = list;
+      if (list.length) {
+        fromParams.statuses = list;
+        hasParams = true;
+      }
     }
-    if (searchParams.get("search")) fromParams.search = searchParams.get("search") || "";
-    if (searchParams.get("categoryId"))
+    if (searchParams.get("search")) {
+      fromParams.search = searchParams.get("search") || "";
+      hasParams = true;
+    }
+    if (searchParams.get("categoryId")) {
       fromParams.categoryId = Number(searchParams.get("categoryId"));
-    if (searchParams.get("minPrice") !== null)
+      hasParams = true;
+    }
+    if (searchParams.get("minPrice") !== null) {
       fromParams.minPrice = searchParams.get("minPrice")
         ? Number(searchParams.get("minPrice"))
         : null;
-    if (searchParams.get("maxPrice") !== null)
+      hasParams = true;
+    }
+    if (searchParams.get("maxPrice") !== null) {
       fromParams.maxPrice = searchParams.get("maxPrice")
         ? Number(searchParams.get("maxPrice"))
         : null;
-    if (searchParams.get("sortBy")) fromParams.sortBy = searchParams.get("sortBy") as SortBy;
-    if (searchParams.get("sortOrder"))
+      hasParams = true;
+    }
+    if (searchParams.get("sortBy")) {
+      fromParams.sortBy = searchParams.get("sortBy") as SortBy;
+      hasParams = true;
+    }
+    if (searchParams.get("sortOrder")) {
       fromParams.sortOrder = searchParams.get("sortOrder") as SortOrder;
-    if (searchParams.get("page")) fromParams.page = Number(searchParams.get("page"));
+      hasParams = true;
+    }
+    if (searchParams.get("page")) {
+      fromParams.page = Number(searchParams.get("page"));
+      hasParams = true;
+    }
+
+    if (!hasParams) {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as Filters;
+          return { ...params, ...parsed };
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+    }
+
     return { ...params, ...fromParams };
   };
 
@@ -362,6 +398,7 @@ function ListPage() {
     if (filters.page !== DEFAULT_FILTERS.page) nextParams.set("page", String(filters.page));
     if (filters.limit !== DEFAULT_FILTERS.limit) nextParams.set("limit", String(filters.limit));
     setSearchParams(nextParams, { replace: true });
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
   }, [filters, setSearchParams]);
 
   const categoryOptions = useMemo(() => {

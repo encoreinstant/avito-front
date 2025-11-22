@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adsApi, MODERATION_REASONS, type ModerationReason } from '../shared/api/ads';
-import type { Advertisement, ModerationAction } from '../shared/types';
+import type {
+  Advertisement,
+  ModerationAction,
+  AdStatus,
+  SortBy,
+  SortOrder,
+} from '../shared/types';
 import { formatDate, formatDateTime, formatPrice } from '../shared/utils/format';
 
 type ActionMode = 'idle' | 'reject' | 'requestChanges';
@@ -95,6 +101,37 @@ function ItemPage() {
   const adId = Number(id);
   const backTo = (location.state as { from?: string } | null)?.from ?? '/list';
 
+  const parseFiltersFromBackLink = () => {
+    const search = backTo.includes('?') ? backTo.split('?')[1] : '';
+    const params = new URLSearchParams(search);
+    const filters: {
+      search?: string;
+      statuses?: AdStatus[];
+      categoryId?: number;
+      minPrice?: number;
+      maxPrice?: number;
+      sortBy?: SortBy;
+      sortOrder?: SortOrder;
+    } = {};
+
+    const statusRaw = params.get('status');
+    if (statusRaw) filters.statuses = statusRaw.split(',').filter(Boolean) as AdStatus[];
+    const searchValue = params.get('search');
+    if (searchValue) filters.search = searchValue;
+    const cat = params.get('categoryId');
+    if (cat !== null && cat !== '') filters.categoryId = Number(cat);
+    const min = params.get('minPrice');
+    if (min !== null) filters.minPrice = min ? Number(min) : undefined;
+    const max = params.get('maxPrice');
+    if (max !== null) filters.maxPrice = max ? Number(max) : undefined;
+    const sortBy = params.get('sortBy') as SortBy | null;
+    if (sortBy) filters.sortBy = sortBy;
+    const sortOrder = params.get('sortOrder') as SortOrder | null;
+    if (sortOrder) filters.sortOrder = sortOrder;
+
+    return filters;
+  };
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['ad', adId],
     enabled: Number.isFinite(adId),
@@ -102,15 +139,24 @@ function ItemPage() {
   });
 
   // Загружаем полный список объявлений для навигации (без пагинации)
+  const backFilters = useMemo(() => parseFiltersFromBackLink(), [backTo]);
+
   const allAdsQuery = useQuery({
-    queryKey: ['ads', 'all-for-navigation'],
+    queryKey: ['ads', 'navigation', backFilters],
     queryFn: ({ signal }) =>
       adsApi.list(
         {
           page: 1,
           limit: 500,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
+          search: backFilters.search,
+          categoryId: backFilters.categoryId,
+          minPrice: backFilters.minPrice,
+          maxPrice: backFilters.maxPrice,
+          sortBy: backFilters.sortBy ?? 'createdAt',
+          sortOrder: backFilters.sortOrder ?? 'desc',
+          status: (backFilters.statuses ?? ['pending']).flatMap((s) =>
+            s === 'pending' ? ['pending', 'draft'] : [s],
+          ),
         },
         signal,
       ),
