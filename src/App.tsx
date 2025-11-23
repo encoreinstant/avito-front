@@ -1,5 +1,6 @@
 ﻿import { createContext, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import ListPage from "./pages/ListPage";
 import ItemPage from "./pages/ItemPage";
 import StatsPage from "./pages/StatsPage";
@@ -35,6 +36,7 @@ export const ThemeContext = createContext<ThemeContextType>({
 });
 
 function AppLayout() {
+  const queryClient = useQueryClient();
   const [introVisible, setIntroVisible] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean>(() => {
     return localStorage.getItem("hotkeyIntroSeen") === "1";
@@ -46,6 +48,8 @@ function AppLayout() {
       ? "dark"
       : "light";
   });
+  const [newModalOpen, setNewModalOpen] = useState(false);
+  const [newCount, setNewCount] = useState(0);
 
   const showIntro = () => setIntroVisible(true);
   const hideIntro = () => {
@@ -61,6 +65,16 @@ function AppLayout() {
 
   const toggleTheme = () =>
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+
+  const openNewModal = () => {
+    setNewCount(Math.floor(Math.random() * 4));
+    setNewModalOpen(true);
+  };
+  const closeNewModal = () => setNewModalOpen(false);
+  const refreshAds = () => {
+    queryClient.invalidateQueries({ queryKey: ["ads"] });
+    closeNewModal();
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -91,6 +105,13 @@ function AppLayout() {
                     </button>
                     <button
                       type="button"
+                      onClick={openNewModal}
+                      className="px-3 py-1 text-xs font-semibold transition-colors duration-200 border rounded-full border-slate-300 text-slate-600 hover:bg-slate-200 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
+                    >
+                      Новые объявления
+                    </button>
+                    <button
+                      type="button"
                       onClick={toggleTheme}
                       className="px-3 py-1 text-xs font-semibold transition-colors duration-200 border rounded-full border-slate-300 text-slate-600 hover:bg-slate-200 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
                     >
@@ -113,8 +134,14 @@ function AppLayout() {
             </header>
 
             {introVisible && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur">
-                <div className="w-full max-w-lg p-6 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]">
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur"
+                onClick={hideIntro}
+              >
+                <div
+                  className="w-full max-w-lg p-6 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                     Горячие клавиши модератора
                   </h3>
@@ -146,9 +173,49 @@ function AppLayout() {
                   <div className="flex justify-end">
                     <button
                       onClick={hideIntro}
-                      className="px-4 py-2 text-sm font-semibold text-white transition rounded-xl bg-slate-900 hover:bg-slate-700 dark:text-slate-800 dark:hover:bg-slate-300 dark:bg-slate-100"
+                      className="px-4 py-2 text-sm font-semibold text-white transition bg-blue-600 shadow-sm rounded-xl hover:bg-blue-500 disabled:opacity-60 dark:bg-blue-500 dark:hover:bg-blue-600"
                     >
                       Все понятно, готов к работе!
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {newModalOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur"
+                onClick={closeNewModal}
+              >
+                <div
+                  className="w-full max-w-md p-5 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Новые объявления
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Имитация real-time обновления списка. Сейчас найдено{" "}
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {newCount}
+                    </span>{" "}
+                    новых объявлений.
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Нажмите «Обновить список», чтобы перезагрузить данные. Когда появятся
+                    реальные новые объявления, они будут загружены автоматически.
+                  </p>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={closeNewModal}
+                      className="px-3 py-2 text-sm font-semibold transition-colors duration-200 border rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      Закрыть
+                    </button>
+                    <button
+                      onClick={refreshAds}
+                      className="px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-xl bg-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600"
+                    >
+                      Обновить список
                     </button>
                   </div>
                 </div>

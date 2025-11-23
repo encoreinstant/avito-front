@@ -47,7 +47,7 @@ function StatusBadge({ status }: { status: Advertisement["status"] }) {
 
 function PriorityBadge({ priority }: { priority: Advertisement["priority"] }) {
   const map: Record<Advertisement["priority"], string> = {
-    normal: "bg-slate-100 text-slate-700",
+    normal: "bg-[#F1F5F9] text-[#334155]",
     urgent: "bg-rose-100 text-rose-700",
   };
   const labels: Record<Advertisement["priority"], string> = {
