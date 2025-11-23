@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { adsApi } from "../shared/api/ads";
@@ -99,6 +99,7 @@ function FiltersPanel({
 }) {
   const [warning, setWarning] = useState<string | null>(null);
   const [lastWarning, setLastWarning] = useState<string>("");
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!warning) return;
@@ -106,6 +107,25 @@ function FiltersPanel({
     const t = setTimeout(() => setWarning(null), 3200);
     return () => clearTimeout(t);
   }, [warning]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const key = e.key;
+      const byCode = e.code === "Slash"; // работает независимо от раскладки
+      const byKey = key === "/" || key === "?" || key === "." || key === ",";
+      if ((byCode || byKey) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        const isFormElement =
+          tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+        if (isFormElement) return;
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const toggleStatus = (value: AdStatus) => {
     const exists = filters.statuses.includes(value);
@@ -126,6 +146,7 @@ function FiltersPanel({
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <input
+            ref={searchRef}
             type="search"
             placeholder="Поиск по названию / описанию"
             value={filters.search}
@@ -202,7 +223,7 @@ function FiltersPanel({
 
           <button
             onClick={onReset}
-            className="px-3 py-2 text-sm font-semibold transition border rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="px-3 py-2 text-sm font-semibold transition border rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600"
           >
             Сбросить
           </button>
@@ -257,7 +278,7 @@ function Pagination({
       </div>
       <div className="flex items-center gap-2">
         <button
-          className="px-3 py-1 font-medium border rounded-full border-slate-200 text-slate-700 disabled:opacity-40"
+          className="px-3 py-1 font-medium transition border rounded-full border-slate-200 text-slate-700 disabled:opacity-40 dark:hover:bg-slate-600"
           onClick={() => onChange(pagination.currentPage - 1)}
           disabled={pagination.currentPage <= 1}
         >
@@ -267,7 +288,7 @@ function Pagination({
           Страница {pagination.currentPage} / {pagination.totalPages}
         </span>
         <button
-          className="px-3 py-1 font-medium border rounded-full border-slate-200 text-slate-700 disabled:opacity-40"
+          className="px-3 py-1 font-medium transition border rounded-full border-slate-200 text-slate-700 disabled:opacity-40 dark:hover:bg-slate-600"
           onClick={() => onChange(pagination.currentPage + 1)}
           disabled={pagination.currentPage >= pagination.totalPages}
         >
@@ -342,7 +363,9 @@ function ListPage() {
     return { ...params, ...fromParams };
   };
 
-  const [filters, setFilters] = useState<Filters>(() => parseFiltersFromSearch());
+  const [filters, setFilters] = useState<Filters>(() =>
+    parseFiltersFromSearch()
+  );
   useEffect(() => {
     const parsed = parseFiltersFromSearch();
     setFilters((prev) => {
@@ -385,18 +408,22 @@ function ListPage() {
   useEffect(() => {
     const nextParams = new URLSearchParams();
     if (filters.search) nextParams.set("search", filters.search);
-    if (filters.statuses.length) nextParams.set("status", filters.statuses.join(","));
+    if (filters.statuses.length)
+      nextParams.set("status", filters.statuses.join(","));
     if (filters.categoryId !== null && filters.categoryId !== undefined)
       nextParams.set("categoryId", String(filters.categoryId));
     if (filters.minPrice !== null && filters.minPrice !== undefined)
       nextParams.set("minPrice", String(filters.minPrice));
     if (filters.maxPrice !== null && filters.maxPrice !== undefined)
       nextParams.set("maxPrice", String(filters.maxPrice));
-    if (filters.sortBy !== DEFAULT_FILTERS.sortBy) nextParams.set("sortBy", filters.sortBy);
+    if (filters.sortBy !== DEFAULT_FILTERS.sortBy)
+      nextParams.set("sortBy", filters.sortBy);
     if (filters.sortOrder !== DEFAULT_FILTERS.sortOrder)
       nextParams.set("sortOrder", filters.sortOrder);
-    if (filters.page !== DEFAULT_FILTERS.page) nextParams.set("page", String(filters.page));
-    if (filters.limit !== DEFAULT_FILTERS.limit) nextParams.set("limit", String(filters.limit));
+    if (filters.page !== DEFAULT_FILTERS.page)
+      nextParams.set("page", String(filters.page));
+    if (filters.limit !== DEFAULT_FILTERS.limit)
+      nextParams.set("limit", String(filters.limit));
     setSearchParams(nextParams, { replace: true });
     localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
   }, [filters, setSearchParams]);
@@ -418,8 +445,7 @@ function ListPage() {
   const handleChange = (next: Partial<Filters>) =>
     setFilters((prev) => ({ ...prev, ...next }));
 
-  const handleReset = () =>
-    setFilters({ ...DEFAULT_FILTERS });
+  const handleReset = () => setFilters({ ...DEFAULT_FILTERS });
 
   return (
     <div className="space-y-4">

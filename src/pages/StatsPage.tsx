@@ -60,7 +60,7 @@ function ActivityChart({ data }: { data: ActivityData[] }) {
             key={item.date}
             className="flex flex-col items-center gap-1 text-xs text-slate-600"
           >
-            <div className="flex h-[150px] w-10 flex-col justify-end overflow-hidden rounded-lg bg-slate-100">
+            <div className="flex h-[150px] w-10 flex-col justify-end overflow-hidden rounded-lg bg-[#F1F5F9] dark:bg-[#41454e]">
               <div
                 title={`Одобрено: ${item.approved}`}
                 className="bg-emerald-500"
@@ -98,7 +98,9 @@ function DecisionsChart({
   data: DecisionsData;
   reviewed: number;
 }) {
-  const total = data.approved + data.rejected + data.requestChanges || 1;
+  const rawTotal = data.approved + data.rejected + data.requestChanges;
+  const total = rawTotal || 1;
+  const isEmpty = rawTotal === 0;
   const parts = [
     { label: "Одобрено", value: data.approved, ad: reviewed, color: "#10b981" }, // emerald-500
     {
@@ -115,15 +117,17 @@ function DecisionsChart({
     }, // amber-500
   ];
   let current = 0;
-  const gradientStops = parts
-    .map((part) => {
-      const from = current;
-      const pct = (part.value / total) * 100;
-      const to = current + pct;
-      current = to;
-      return `${part.color} ${from}% ${to}%`;
-    })
-    .join(", ");
+  const gradientStops = isEmpty
+    ? "#cbd5e1 0 100%"
+    : parts
+        .map((part) => {
+          const from = current;
+          const pct = (part.value / total) * 100;
+          const to = current + pct;
+          current = to;
+          return `${part.color} ${from}% ${to}%`;
+        })
+        .join(", ");
 
   return (
     <div className="grid gap-3 md:grid-cols-[auto_1fr] items-center">
@@ -134,7 +138,7 @@ function DecisionsChart({
         <div className="absolute flex flex-col items-center justify-center bg-white border rounded-full inset-4 border-slate-100">
           <p className="text-xs text-slate-500">Всего</p>
           <p className="text-lg font-semibold text-slate-900">
-            {reviewed + " Объявлений"}
+            {reviewed} объявлений
           </p>
         </div>
       </div>
@@ -152,8 +156,8 @@ function DecisionsChart({
               <span>{part.label}</span>
             </div>
             <span className="font-semibold text-slate-900">
-              {Math.round(part.ad * (part.value / total)) + " Объяв."}
-              {", " + Math.round((part.value / total) * 100)}%
+              {Math.round(part.ad * (part.value / total))} объяв.,{" "}
+              {Math.round((part.value / total) * 100)}%
             </span>
           </div>
         ))}
@@ -173,15 +177,15 @@ function CategoriesChart({ data }: { data: Record<string, number> }) {
         return (
           <div
             key={category}
-            className="p-3 border rounded-xl border-slate-200 bg-slate-50/60 shadow-sm"
+            className="p-3 transition border shadow-sm rounded-xl border-slate-200 bg-slate-50 hover:bg-slate-100 dark:bg-slate-100 dark:hover:bg-slate-600"
           >
             <div className="flex items-center justify-between text-sm text-slate-700">
               <span className="font-semibold text-slate-900">{category}</span>
-              <span className="text-slate-500">
-                {value} · {percent}%
+              <span className="text-slate-900">
+                {value} объяв. · {percent}%
               </span>
             </div>
-            <div className="mt-3 h-3 rounded-full bg-slate-200">
+            <div className="h-3 mt-3 rounded-full bg-slate-200">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-sky-500 to-blue-600"
                 style={{ width: `${percent}%` }}
@@ -269,20 +273,6 @@ function StatsPage() {
     );
   }, [categoriesAllQuery.data, categoriesQuery.data]);
 
-  const totalReviewedDisplayed = useMemo(() => {
-    if (!summaryQuery.data) return 0;
-    switch (period) {
-      case "today":
-        return summaryQuery.data.totalReviewedToday;
-      case "week":
-        return summaryQuery.data.totalReviewedThisWeek;
-      case "month":
-        return summaryQuery.data.totalReviewedThisMonth;
-      default:
-        return summaryQuery.data.totalReviewed;
-    }
-  }, [period, summaryQuery.data]);
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -302,7 +292,7 @@ function StatsPage() {
               className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
                 period === option.value
                   ? "bg-blue-600 text-white"
-                  : "text-slate-700"
+                  : "transition-colors duration-200 text-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-600"
               }`}
             >
               {option.label}
@@ -319,7 +309,8 @@ function StatsPage() {
 
       {(summaryQuery.isError ||
         activityQuery.isError ||
-        decisionsQuery.isError) && (
+        decisionsQuery.isError ||
+        categoriesQuery.isError) && (
         <div className="p-6 border rounded-2xl border-rose-200 bg-rose-50 text-rose-700">
           Не удалось загрузить статистику. Попробуйте позже.
         </div>
@@ -329,26 +320,22 @@ function StatsPage() {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           <MetricCard
             title="Всего проверено"
-            value={summaryQuery.data.totalReviewed.toString() + " Объявлений"}
-            // note={`Сегодня: ${summaryQuery.data.totalReviewedToday}`}
+            value={`${summaryQuery.data.totalReviewed} объявлений`}
           />
           <MetricCard
             title="Одобрено"
             value={`${decisionsPercents.approved}%`}
             valueClassName="text-emerald-600"
-            // note={`За неделю: ${summaryQuery.data.totalReviewedThisWeek}`}
           />
           <MetricCard
             title="Отклонено"
             value={`${decisionsPercents.rejected}%`}
             valueClassName="text-rose-600"
-            // note={`За месяц: ${summaryQuery.data.totalReviewedThisMonth}`}
           />
           <MetricCard
             title="На доработке"
             value={`${decisionsPercents.requestChanges}%`}
             valueClassName="text-amber-600"
-            // note={`За период: ${summaryQuery.data.requestChangesPercentage}%`}
           />
           <MetricCard
             title="Среднее время проверки"
