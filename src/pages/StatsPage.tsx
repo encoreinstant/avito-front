@@ -273,6 +273,198 @@ function StatsPage() {
     );
   }, [categoriesAllQuery.data, categoriesQuery.data]);
 
+  const downloadCsv = () => {
+    const safe = (value: unknown) =>
+      `"${String(value ?? "")
+        .replace(/"/g, '""')
+        .replace(/\n/g, " ")
+        .replace(/\r/g, " ")}"`;
+
+    const lines: string[] = [];
+    lines.push("Раздел;Параметр;Значение");
+
+    if (summaryQuery.data) {
+      lines.push(
+        `Итоги;Всего проверено (Объявлений);${summaryQuery.data.totalReviewed}`,
+        `Итоги;Одобрено (%);${Math.round(decisionsPercents.approved)}`,
+        `Итоги;Отклонено (%);${Math.round(decisionsPercents.rejected)}`,
+        `Итоги;На доработке (%);${Math.round(
+          decisionsPercents.requestChanges
+        )}`,
+        `Итоги;Среднее время проверки;${summaryQuery.data.averageReviewTime} у.е.`
+      );
+    }
+    {
+    }
+    if (decisionsQuery.data && summaryQuery.data) {
+      lines.push(
+        `Распределение;Одобрено (Объявлений);${Math.round(
+          (decisionsQuery.data.approved / 100) * summaryQuery.data.totalReviewed
+        )}`,
+        `Распределение;Отклонено (Объявлений);${Math.round(
+          (decisionsQuery.data.rejected / 100) * summaryQuery.data.totalReviewed
+        )}`,
+        `Распределение;На доработке (Объявлений);${Math.round(
+          (decisionsQuery.data.requestChanges / 100) *
+            summaryQuery.data.totalReviewed
+        )}`
+      );
+    }
+
+    if (activityPeriod.length) {
+      lines.push("Активность;Дата;Одобрено, Отклонено, Доработка");
+      activityPeriod.forEach((day) => {
+        lines.push(
+          `Активность;${safe(day.date)};${day.approved}, ${day.rejected}, ${
+            day.requestChanges
+          }`
+        );
+      });
+    }
+
+    if (Object.keys(categoriesMerged).length) {
+      lines.push("Категории;Название категории;Количество объявлений");
+      Object.entries(categoriesMerged).forEach(([category, value]) => {
+        lines.push(`Категории;${safe(category)};${value}`);
+      });
+    }
+
+    // Добавляем BOM, чтобы Excel корректно открыл UTF-8 и показал русский текст
+    const csv = "\ufeff" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const now = new Date();
+    const date = `${String(now.getDate()).padStart(2, "0")}.${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}.${now.getFullYear()}`;
+    link.download = `stats_${period}_${date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = () => {
+    if (
+      !summaryQuery.data ||
+      !decisionsQuery.data ||
+      !categoriesMerged ||
+      !activityPeriod
+    ) {
+      return;
+    }
+
+    const fmtDate = (value: string) =>
+      new Date(value).toLocaleDateString("ru-RU");
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString("ru-RU");
+
+    const rows: string[] = [];
+    rows.push(
+      `<h2>Статистика (${
+        periodOptions.find((p) => p.value === period)?.label ?? period
+      })</h2>`
+    );
+    rows.push(
+      "<h3>Итоги</h3>",
+      `<p>Всего проверено: <strong>${summaryQuery.data.totalReviewed} Объявлений</strong></p>`,
+      `<p>Одобрено: ${decisionsPercents.approved}%</p>`,
+      `<p>Отклонено: ${decisionsPercents.rejected}%</p>`,
+      `<p>На доработке: ${decisionsPercents.requestChanges}%</p>`,
+      `<p>Среднее время проверки: ${summaryQuery.data.averageReviewTime} у.е.</p>`
+    );
+
+    rows.push(
+      "<h3>Распределение решений (Количество объявлений)</h3>",
+      `<p>Одобрено: ${Math.round(
+        (decisionsQuery.data.approved / 100) * summaryQuery.data.totalReviewed
+      )}</p>`,
+      `<p>Отклонено: ${Math.round(
+        (decisionsQuery.data.rejected / 100) * summaryQuery.data.totalReviewed
+      )}</p>`,
+      `<p>На доработке: ${Math.round(
+        (decisionsQuery.data.requestChanges / 100) *
+          summaryQuery.data.totalReviewed
+      )}</p>`
+    );
+
+    if (activityPeriod.length) {
+      rows.push(
+        "<h3>Активность по дням (за прошедшую неделю)</h3>",
+        `<table style="border-collapse:collapse;width:100%;max-width:520px;">
+           <thead>
+             <tr>
+               <th style="border:1px solid #cbd5e1;padding:6px 8px;text-align:left;">Дата</th>
+               <th style="border:1px solid #cbd5e1;padding:6px 8px;text-align:right;">Одобрено</th>
+               <th style="border:1px solid #cbd5e1;padding:6px 8px;text-align:right;">Отклонено</th>
+               <th style="border:1px solid #cbd5e1;padding:6px 8px;text-align:right;">Доработка</th>
+             </tr>
+           </thead>
+           <tbody>`
+      );
+      activityPeriod.forEach((day) => {
+        rows.push(
+          `<tr>
+             <td style="border:1px solid #e2e8f0;padding:6px 8px;">${fmtDate(
+               day.date
+             )}</td>
+             <td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:right;">${
+               day.approved
+             }</td>
+             <td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:right;">${
+               day.rejected
+             }</td>
+             <td style="border:1px solid #e2e8f0;padding:6px 8px;text-align:right;">${
+               day.requestChanges
+             }</td>
+           </tr>`
+        );
+      });
+      rows.push("</tbody></table>");
+    }
+
+    if (Object.keys(categoriesMerged).length) {
+      rows.push(
+        "<h3>Категории (Категория: количество объявлений)</h3>",
+        "<ul>"
+      );
+      Object.entries(categoriesMerged).forEach(([category, value]) => {
+        rows.push(`<li>${category}: ${value}</li>`);
+      });
+      rows.push("</ul>");
+    }
+
+    const html = `<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Отчет ${period} ${dateStr}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #0f172a; padding: 24px; }
+    h1 { margin: 0 0 12px; }
+    h2 { margin: 16px 0 8px; }
+    h3 { margin: 12px 0 6px; }
+    p { margin: 4px 0; }
+    ul { margin: 6px 0 12px 20px; padding: 0; }
+  </style>
+</head>
+<body>
+  <h1>Отчет по модерации</h1>
+  <p>Дата формирования: ${dateStr}</p>
+  ${rows.join("\n")}
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -284,20 +476,40 @@ function StatsPage() {
             Метрики по статусам, графики и распределение по категориям.
           </p>
         </div>
-        <div className="flex items-center gap-2 p-1 bg-white border rounded-full shadow-sm border-slate-200">
-          {periodOptions.map((option) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 p-1 bg-white border rounded-full shadow-sm border-slate-200">
             <button
-              key={option.value}
-              onClick={() => setPeriod(option.value)}
-              className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                period === option.value
-                  ? "bg-blue-600 text-white"
-                  : "transition-colors duration-200 text-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-600"
-              }`}
+              title="Экспорт CSV за выбранный период"
+              type="button"
+              onClick={downloadCsv}
+              className="px-3 py-1 text-sm font-semibold transition-colors duration-200 rounded-full text-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
-              {option.label}
+              Экспорт CSV
             </button>
-          ))}
+            <button
+              title="Экспорт PDF за выбранный период (печать/сохранение)"
+              type="button"
+              onClick={exportPdf}
+              className="px-3 py-1 text-sm font-semibold transition-colors duration-200 rounded-full text-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              Экспорт PDF
+            </button>
+          </div>
+          <div className="flex items-center gap-2 p-1 bg-white border rounded-full shadow-sm border-slate-200">
+            {periodOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setPeriod(option.value)}
+                className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
+                  period === option.value
+                    ? "bg-blue-600 text-white"
+                    : "transition-colors duration-200 text-slate-700 hover:bg-blue-100 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
