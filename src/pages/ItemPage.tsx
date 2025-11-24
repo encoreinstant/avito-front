@@ -367,7 +367,11 @@ function ItemPage() {
               navigate(`/item/${prevNext.prevId}`, { state: { from: backTo } })
             }
             disabled={!prevNext.prevId || allAdsQuery.isLoading}
-            className="px-3 py-2 text-sm font-semibold transition-colors duration-200 border rounded-full border-slate-200 text-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
+            className={`px-3 py-2 text-sm font-semibold transition-colors duration-200 border rounded-full border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-300 ${
+              !prevNext.prevId || allAdsQuery.isLoading
+                ? "disabled:opacity-40"
+                : "hover:bg-slate-100 dark:hover:bg-slate-600"
+            }`}
           >
             ← Предыдущее
           </button>
@@ -377,7 +381,11 @@ function ItemPage() {
               navigate(`/item/${prevNext.nextId}`, { state: { from: backTo } })
             }
             disabled={!prevNext.nextId || allAdsQuery.isLoading}
-            className="px-3 py-2 text-sm font-semibold transition-colors duration-200 border rounded-full border-slate-200 text-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
+            className={`px-3 py-2 text-sm font-semibold transition-colors duration-200 border rounded-full border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-300 ${
+              !prevNext.nextId || allAdsQuery.isLoading
+                ? "disabled:opacity-40"
+                : "hover:bg-slate-100 dark:hover:bg-slate-600"
+            }`}
           >
             Следующее →
           </button>

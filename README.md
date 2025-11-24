@@ -1,16 +1,64 @@
-# React + Vite
+﻿# Система модерации объявлений Авито
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Веб‑приложение для модерации объявлений с тремя основными страницами: список, карточка объявления и статистика. Реализованы все обязательные и дополнительные требования.
 
-Currently, two official plugins are available:
+## Запуск проекта
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Вариант 1. Docker Compose (основной)
 
-## React Compiler
+```bash
+docker compose up --build
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+После этого будут доступны следующие адреса:
 
-## Expanding the ESLint configuration
+- Клиент: `http://localhost:5173`
+- API: `http://localhost:3001`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Остановка: `Ctrl+C` или `docker compose down`.
+
+### Вариант 2. Локально (дополнительный способ, без Docker)
+
+> Создай в корне проекта файл .env со строкой  
+> `VITE_API_BASE=/api/v1`
+
+```bash
+# Если ты в корне проекта (\avito-front), то
+# Запуск сервера
+cd tech-int3-server
+npm ci
+npm start   # http://localhost:3001
+
+# Далее запуск клиента (возвращаешься в корневую папку с помощью cd ..)
+cd ..
+npm ci
+npm run dev   # http://localhost:5173
+# либо сборка: npm run build && npm run preview
+```
+
+## Почему выбраны технологии
+
+- **TypeScript** - строгая типизация, меньше рантайм-ошибок по сравнению с JS, позволяет сделать продукт более управляемым, интересно было поработать с TS в данном проекте.
+- **ESLint** - Предоставляет единый стиль и предотвращение ошибок, включая сервер.
+- **Prettier** - автоформатирование кода для повышения читаемости и ускорения работы.
+- **Vite** - быстрая разработка и сборка, оптимальная статика под nginx.
+- **React Query** - предоставляет возможности и закрывает много задач: кэш, рефетч, управление состоянием запроса, отмена запросов через `AbortSignal` и т.д. В сравнении с обычным fetch или axios и UseState все пришлось бы писать вручную и тестировать, а в React Query уже все протестировано и собрано.
+- **Tailwind CSS** - быстрая стилизация, краткость написания CSS стилей , простота применения, приятные встроенные элементы стилизации .
+- **Docker + docker-compose** - добавлен для возможности удобно запускать проект в одинаковой среде у любого пользователя, единообразный запуск.
+- **Отмена запросов при переходах** - все API используют `AbortSignal`; React Query отменяет фетчи при анмаунте/смене страницы.
+- **Комментарии и документация** - с комментариями код становится понятнее, более читаемым, документация дает понять о структуре и архитектуре проекта в целом.
+
+## Дополнительно сделано (все пункты)
+
+1. Горячие клавиши: A/Ф — одобрить, D/В — отклонить, ← пред., → след., `/` — фокус на поиск.
+2. Bulk-операции: чекбоксы на карточках, массовое одобрение/отклонение/доработка, счётчик выбранных.
+3. Продвинутая фильтрация: сохранение фильтров, URL-синхронизация (ссылкой можно поделиться).
+4. Тёмная тема: переключатель, сохранение в localStorage.
+5. Экспорт данных: CSV и PDF отчёты по выбранному периоду.
+6. Real-time (симуляция): кнопка «Новые объявления», счётчик и обновление списка.
+7. Анимации: плавные загрузки страниц, плавное появление карточек, аккуратное всплытие модальных окон, уведомлений. Progress bar загрузки.
+8. Фильтр периода /stats: Сегодня, 7 дней, 30 дней (график "Активность по дням" за прошедшую неделю фиксирован).
+
+## Документация
+
+Документация расположена в файле documentation.md в корне проекта.
