@@ -20,9 +20,11 @@ import {
 } from "../shared/utils/format";
 import { HotkeyIntroContext } from "../App";
 
+// Режимы действий модератора
 type ActionMode = "idle" | "reject" | "requestChanges";
 
 function StatusBadge({ status }: { status: Advertisement["status"] }) {
+  //  цветы для бейджа статуса
   const map: Record<Advertisement["status"], string> = {
     pending: "bg-amber-100 text-amber-800",
     approved: "bg-emerald-100 text-emerald-800",
@@ -46,6 +48,7 @@ function StatusBadge({ status }: { status: Advertisement["status"] }) {
 }
 
 function PriorityBadge({ priority }: { priority: Advertisement["priority"] }) {
+  // приоритет объявления
   const map: Record<Advertisement["priority"], string> = {
     normal: "bg-[#F1F5F9] text-[#334155]",
     urgent: "bg-rose-100 text-rose-700",
@@ -69,6 +72,7 @@ function ModerationHistoryList({
 }: {
   history: Advertisement["moderationHistory"];
 }) {
+  // Сортировка истории от нового к старому
   const sorted = [...history].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
@@ -88,6 +92,7 @@ function ModerationHistoryList({
         >
           <div className="flex items-center justify-between">
             <span className="font-semibold">{actionLabels[entry.action]}</span>
+            {/* Отображение имени модератора */}
             <span className="text-xs text-slate-500">
               {formatDateTime(entry.timestamp)}
             </span>
@@ -110,7 +115,7 @@ function ModerationHistoryList({
     </div>
   );
 }
-
+// Подставляет заглушки, если фото меньше 3
 function imagesWithFallback(images: string[]) {
   if (images.length >= 3) return images;
   const placeholders = Array.from({ length: 3 - images.length }, (_, idx) => {
@@ -128,8 +133,9 @@ function ItemPage() {
   const hotkeyIntro = useContext(HotkeyIntroContext);
 
   const adId = Number(id);
+  // Ссылка, откуда пришел пользователь
   const backTo = (location.state as { from?: string } | null)?.from ?? "/list";
-
+  // Разбор фильтров из URL списка объявлений
   const parseFiltersFromBackLink = () => {
     const search = backTo.includes("?") ? backTo.split("?")[1] : "";
     const params = new URLSearchParams(search);
@@ -150,6 +156,7 @@ function ItemPage() {
     if (searchValue) filters.search = searchValue;
     const cat = params.get("categoryId");
     if (cat !== null && cat !== "") filters.categoryId = Number(cat);
+    // типизация чисел
     const min = params.get("minPrice");
     if (min !== null) filters.minPrice = min ? Number(min) : undefined;
     const max = params.get("maxPrice");
@@ -161,7 +168,7 @@ function ItemPage() {
 
     return filters;
   };
-
+  // Запрос конкретного объявления
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["ad", adId],
     enabled: Number.isFinite(adId),
@@ -169,7 +176,7 @@ function ItemPage() {
   });
 
   const backFilters = useMemo(() => parseFiltersFromBackLink(), [backTo]);
-
+  // Загрузка списка объявлений для навигации «вперед/назад»
   const allAdsQuery = useQuery({
     queryKey: ["ads", "navigation", backFilters],
     queryFn: ({ signal }) =>
@@ -191,7 +198,7 @@ function ItemPage() {
       ),
     staleTime: 5 * 60 * 1000,
   });
-
+  // Вычисление предыдущего и следующего объявления
   const prevNext = useMemo(() => {
     const ids = allAdsQuery.data?.ads.map((ad) => ad.id) ?? [];
     const index = ids.indexOf(adId);
@@ -200,7 +207,7 @@ function ItemPage() {
       nextId: index >= 0 && index < ids.length - 1 ? ids[index + 1] : null,
     };
   }, [adId, allAdsQuery.data]);
-
+  // Состояния модерации
   const [actionMode, setActionMode] = useState<ActionMode>("idle");
   const [reason, setReason] = useState<ModerationReason>(MODERATION_REASONS[0]);
   const [comment, setComment] = useState("");
@@ -209,12 +216,12 @@ function ItemPage() {
     "approve" | "reject" | "changes" | null
   >(null);
   const [hotkeyVisible, setHotkeyVisible] = useState(false);
-
+  // Инвалидируем кэш после действия модерации
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["ad", adId] });
     queryClient.invalidateQueries({ queryKey: ["ads"] });
   };
-
+  // уведомления при использовании горячих клавиш
   const showApproveNotice = () => {
     setHotkeyNotice("Объявление одобрено");
     setHotkeyType("approve");
@@ -228,7 +235,7 @@ function ItemPage() {
     setHotkeyNotice("Отправлено на доработку");
     setHotkeyType("changes");
   };
-
+  // изменения статуса объявления
   const approveMutation = useMutation({
     mutationFn: () => adsApi.approve(adId),
     onSuccess: () => {
@@ -258,7 +265,7 @@ function ItemPage() {
       showRequestChangesNotice();
     },
   });
-
+  // показ/скрытие уведомления о горячей клавише
   useEffect(() => {
     if (!hotkeyNotice) return;
     setHotkeyVisible(true);
@@ -272,7 +279,7 @@ function ItemPage() {
       clearTimeout(clearTimer);
     };
   }, [hotkeyNotice]);
-
+  //  обработчик горячих клавиш
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
@@ -295,7 +302,7 @@ function ItemPage() {
         setHotkeyNotice("Выберите причину отклонения");
         setHotkeyType("reject");
       }
-
+      // Горячие клавиши навигации
       if (e.key === "ArrowLeft" && prevNext.prevId) {
         e.preventDefault();
         navigate(`/item/${prevNext.prevId}`, { state: { from: backTo } });
@@ -320,7 +327,7 @@ function ItemPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-page">
       {hotkeyNotice && (
         <div
           className={`fixed left-1/2 top-6 z-50 -translate-x-1/2 transition-all duration-200 ${
@@ -329,6 +336,7 @@ function ItemPage() {
               : "opacity-0 -translate-y-2"
           }`}
         >
+          {/* Уведомление от горячих клавиш */}
           <div
             className={`rounded-full px-4 py-2 text-sm font-semibold shadow-md backdrop-blur border ${
               hotkeyType === "reject"

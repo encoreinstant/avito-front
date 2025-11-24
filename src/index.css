@@ -66,3 +66,94 @@ a {
 .dark ::placeholder {
   color: #9ca3af;
 }
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes progressMove {
+  0% {
+    transform: translateX(-40%);
+  }
+  50% {
+    transform: translateX(20%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-page {
+  animation: fadeIn 0.5s ease;
+}
+
+.card-appear {
+  animation: cardIn 0.5s ease;
+}
+
+.progress-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #bfdbfe, #60a5fa, #bfdbfe);
+  overflow: hidden;
+  z-index: 60;
+}
+
+.progress-strip::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  animation: progressMove 1.2s ease-in-out infinite;
+}
+
+@keyframes modalFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-overlay {
+  animation: modalFade 0.25s ease;
+}
+
+.modal-content {
+  animation: modalPop 0.3s ease;
+}

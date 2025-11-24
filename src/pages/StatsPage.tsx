@@ -8,13 +8,13 @@ import type {
   DecisionsData,
   Period,
 } from "../shared/types";
-
+//Опции выбора периода для фильтрации статистики
 const periodOptions: { value: Period; label: string }[] = [
   { value: "today", label: "Сегодня" },
   { value: "week", label: "7 дней" },
   { value: "month", label: "30 дней" },
 ];
-
+//Компонент отображения одной метрики с заголовком, значением и заметкой
 function MetricCard({
   title,
   value,
@@ -40,8 +40,9 @@ function MetricCard({
     </div>
   );
 }
-
+//Компонент отображения столбчатой диаграммы активности по дням
 function ActivityChart({ data }: { data: ActivityData[] }) {
+  //Определяем максимальное значение для масштабирования высоты столбцов
   const maxValue = Math.max(
     ...data.map((d) => d.approved + d.rejected + d.requestChanges),
     1
@@ -90,7 +91,7 @@ function ActivityChart({ data }: { data: ActivityData[] }) {
     </div>
   );
 }
-
+//Компонент для отображения круговой диаграммы решений
 function DecisionsChart({
   data,
   reviewed,
@@ -101,6 +102,7 @@ function DecisionsChart({
   const rawTotal = data.approved + data.rejected + data.requestChanges;
   const total = rawTotal || 1;
   const isEmpty = rawTotal === 0;
+  //формируем части диаграммы с цветами
   const parts = [
     { label: "Одобрено", value: data.approved, ad: reviewed, color: "#10b981" }, // emerald-500
     {
@@ -116,6 +118,7 @@ function DecisionsChart({
       color: "#f59e0b",
     }, // amber-500
   ];
+  //вычисляем конусы для conic-gradient
   let current = 0;
   const gradientStops = isEmpty
     ? "#cbd5e1 0 100%"
@@ -165,7 +168,7 @@ function DecisionsChart({
     </div>
   );
 }
-
+//Компонент для отображения распределения по категориям
 function CategoriesChart({ data }: { data: Record<string, number> }) {
   const entries = Object.entries(data);
   const total = entries.reduce((acc, [, value]) => acc + value, 0) || 1;
@@ -197,10 +200,10 @@ function CategoriesChart({ data }: { data: Record<string, number> }) {
     </div>
   );
 }
-
+//Главный компонент страницы статистики
 function StatsPage() {
   const [period, setPeriod] = useState<Period>("week");
-
+  //Запросы к API для получения статистики
   const summaryQuery = useQuery({
     queryKey: ["stats", "summary", period],
     queryFn: ({ signal }) => statsApi.summary({ period }, signal),
@@ -222,12 +225,12 @@ function StatsPage() {
     queryFn: ({ signal }) => adsApi.list({ page: 1, limit: 500 }, signal),
     staleTime: 5 * 60 * 1000,
   });
-
+  //Выбираем последние 8 дней для графика активности
   const activityPeriod = useMemo(
     () => (activityQuery.data ? activityQuery.data.slice(-8) : []),
     [activityQuery.data]
   );
-
+  //Вычисление процентов решений (одобрено/отклонено/доработка)
   const decisionsPercents = useMemo(() => {
     if (decisionsQuery.data) {
       const { approved, rejected, requestChanges } = decisionsQuery.data;
@@ -251,13 +254,13 @@ function StatsPage() {
     }
     return { approved: 0, rejected: 0, requestChanges: 0 };
   }, [decisionsQuery.data, summaryQuery.data]);
-
+  //Проверка загрузки данных
   const loading =
     summaryQuery.isLoading ||
     activityQuery.isLoading ||
     decisionsQuery.isLoading ||
     categoriesQuery.isLoading;
-
+  //Объединяем данные категорий с учетом всех объявлений
   const categoriesMerged = useMemo(() => {
     const map = new Map<string, number>();
     categoriesAllQuery.data?.ads.forEach((ad) => {
@@ -272,7 +275,7 @@ function StatsPage() {
       Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "ru"))
     );
   }, [categoriesAllQuery.data, categoriesQuery.data]);
-
+  //Функция экспорта CSV с данными статистики
   const downloadCsv = () => {
     const safe = (value: unknown) =>
       `"${String(value ?? "")
@@ -329,7 +332,7 @@ function StatsPage() {
       });
     }
 
-    // Добавляем BOM, чтобы Excel корректно открыл UTF-8 и показал русский текст
+    //Добавляем BOM, чтобы Excel корректно открыл UTF-8 и показал русский текст
     const csv = "\ufeff" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -343,7 +346,7 @@ function StatsPage() {
     link.click();
     URL.revokeObjectURL(url);
   };
-
+  //Функция экспорта PDF/печати отчета
   const exportPdf = () => {
     if (
       !summaryQuery.data ||
@@ -464,10 +467,11 @@ function StatsPage() {
     win.focus();
     win.print();
   };
-
+  //JSX разметка страницы
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-page">
       <div className="flex flex-wrap items-center justify-between gap-2">
+        {/*Заголовок и кнопки экспорта */}
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
             Статистика модерации
@@ -530,6 +534,7 @@ function StatsPage() {
 
       {summaryQuery.data && (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+          {/*Метрики */}
           <MetricCard
             title="Всего проверено"
             value={`${summaryQuery.data.totalReviewed} объявлений`}
@@ -557,6 +562,7 @@ function StatsPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {/*График активности */}
         {activityPeriod.length > 0 && (
           <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200">
             <div className="flex items-center justify-between mb-3">
@@ -588,6 +594,7 @@ function StatsPage() {
 
         {decisionsQuery.data && summaryQuery.data !== undefined && (
           <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200">
+            {/*Распределение решений */}
             <h3 className="text-lg font-semibold text-slate-900">
               Распределение решений
             </h3>
@@ -602,6 +609,7 @@ function StatsPage() {
 
       {Object.keys(categoriesMerged).length > 0 && (
         <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200">
+          {/*Распределение по категориям */}
           <h3 className="text-lg font-semibold text-slate-900">Категории</h3>
           <CategoriesChart data={categoriesMerged} />
         </div>

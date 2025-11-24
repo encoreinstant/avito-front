@@ -45,12 +45,14 @@ const DEFAULT_FILTERS: Filters = {
 
 const FILTERS_STORAGE_KEY = "listFilters";
 
+// Статусы для фильтрации и чекбоксов панели
 const statusOptions: { value: AdStatus; label: string }[] = [
   { value: "pending", label: "На модерации" },
   { value: "approved", label: "Одобрено" },
   { value: "rejected", label: "Отклонено" },
 ];
 
+// Подписи приоритетов в карточке
 const priorityLabel: Record<Priority, string> = {
   normal: "Обычный",
   urgent: "Срочный",
@@ -80,6 +82,7 @@ function StatusBadge({ status }: { status: AdStatus }) {
   );
 }
 
+//  приоритет (обычный / срочный)
 function PriorityBadge({ priority }: { priority: Priority }) {
   const map: Record<Priority, string> = {
     normal: "bg-[#F1F5F9] text-[#334155]",
@@ -109,6 +112,7 @@ function FiltersPanel({
   const [lastWarning, setLastWarning] = useState<string>("");
   const searchRef = useRef<HTMLInputElement | null>(null);
 
+  // предупреждение при попытке снять единственный статус и скрытие через таймер
   useEffect(() => {
     if (!warning) return;
     setLastWarning(warning);
@@ -116,6 +120,7 @@ function FiltersPanel({
     return () => clearTimeout(t);
   }, [warning]);
 
+  // Хоткей "/" (независимо от раскладки) фокус на поле поиска
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const key = e.key;
@@ -135,6 +140,7 @@ function FiltersPanel({
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Переключаем статус в фильтре, не даём оставить список статусов пустым
   const toggleStatus = (value: AdStatus) => {
     const exists = filters.statuses.includes(value);
     if (exists && filters.statuses.length === 1) {
@@ -149,6 +155,7 @@ function FiltersPanel({
     onChange({ statuses: next, page: 1 });
   };
 
+  // рзметка панели фильтров: поиск, категории, цена, сортировка, статусы
   return (
     <div className="p-4 bg-white border shadow-sm rounded-2xl border-slate-200">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -276,6 +283,7 @@ function Pagination({
   pagination: AdsListResponse["pagination"];
   onChange: (page: number) => void;
 }) {
+  // Простая пагинация, показывает total и переключает страницы
   return (
     <div className="flex items-center justify-between text-sm text-slate-600">
       <div>
@@ -329,6 +337,11 @@ function ListPage() {
   );
   const [bulkComment, setBulkComment] = useState("");
   const [bulkPending, setBulkPending] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+  const [bulkNoticeType, setBulkNoticeType] = useState<
+    "approve" | "reject" | "changes" | null
+  >(null);
+  const [bulkNoticeVisible, setBulkNoticeVisible] = useState(false);
   const selectedIdsLabel = useMemo(
     () =>
       selectedIds
@@ -339,6 +352,7 @@ function ListPage() {
     [selectedIds]
   );
 
+  //восстанавливаем фильтры из query-параметров или localStorage, или берём дефолты
   const parseFiltersFromSearch = (): Filters => {
     const params: Filters = { ...DEFAULT_FILTERS };
     const fromParams: Partial<Filters> = {};
@@ -391,7 +405,7 @@ function ListPage() {
           const parsed = JSON.parse(saved) as Filters;
           return { ...params, ...parsed };
         } catch (e) {
-          // ignore parse errors
+          // игонрим ошибки парсинга
         }
       }
     }
@@ -403,6 +417,7 @@ function ListPage() {
     parseFiltersFromSearch()
   );
   useEffect(() => {
+    // при изменении query-параметров синхронизируем локальный стейт фильтров
     const parsed = parseFiltersFromSearch();
     setFilters((prev) => {
       const same = JSON.stringify(prev) === JSON.stringify(parsed);
@@ -412,33 +427,36 @@ function ListPage() {
   }, [searchParams.toString()]);
 
   // Загружаем полный список категорий без фильтров, чтобы селект всегда был полным
+  // Загружаем полный список категорий (без фильтров) для стабильного селекта
   const categoriesAllQuery = useQuery<AdsListResponse>({
     queryKey: ["categories", "all"],
     queryFn: ({ signal }) => adsApi.list({ page: 1, limit: 500 }, signal),
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data, isLoading, isError, error } = useQuery<AdsListResponse>({
-    queryKey: ["ads", filters],
-    queryFn: ({ signal }) =>
-      adsApi.list(
-        {
-          page: filters.page,
-          limit: filters.limit,
-          search: filters.search || undefined,
-          status: filters.statuses.flatMap((s) =>
-            s === "pending" ? ["pending", "draft"] : [s]
-          ),
-          categoryId: filters.categoryId ?? undefined,
-          minPrice: filters.minPrice ?? undefined,
-          maxPrice: filters.maxPrice ?? undefined,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder,
-        },
-        signal
-      ),
-    placeholderData: keepPreviousData,
-  });
+  const { data, isLoading, isError, error, isFetching } =
+    useQuery<AdsListResponse>({
+      queryKey: ["ads", filters],
+      // Основной запрос списка с учётом текущих фильтров
+      queryFn: ({ signal }) =>
+        adsApi.list(
+          {
+            page: filters.page,
+            limit: filters.limit,
+            search: filters.search || undefined,
+            status: filters.statuses.flatMap((s) =>
+              s === "pending" ? ["pending", "draft"] : [s]
+            ),
+            categoryId: filters.categoryId ?? undefined,
+            minPrice: filters.minPrice ?? undefined,
+            maxPrice: filters.maxPrice ?? undefined,
+            sortBy: filters.sortBy,
+            sortOrder: filters.sortOrder,
+          },
+          signal
+        ),
+      placeholderData: keepPreviousData,
+    });
 
   // Удаляем из выделения объявления, которых нет в текущей выборке
   // Синхронизация фильтров с query-параметрами, чтобы сохранять состояние при навигации
@@ -465,6 +483,7 @@ function ListPage() {
     localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
   }, [filters, setSearchParams]);
 
+  // Создаём стабильный полный список категорий (все страницы) для стабильного селекта
   const categoryOptions = useMemo(() => {
     const map = new Map<number, string>();
     const collect = (ads?: AdsListResponse["ads"]) => {
@@ -484,13 +503,30 @@ function ListPage() {
 
   const handleReset = () => setFilters({ ...DEFAULT_FILTERS });
 
+  // добавлеяемс
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
     );
   };
 
+  // Сбрасываем все выделения для массовых действий
   const clearSelection = () => setSelectedIds([]);
+
+  useEffect(() => {
+    if (!bulkNotice) return;
+    setBulkNoticeVisible(true);
+    // Плавное скрытие уведомления о массовом действии
+    const hide = setTimeout(() => setBulkNoticeVisible(false), 3200);
+    const clear = setTimeout(() => {
+      setBulkNotice(null);
+      setBulkNoticeType(null);
+    }, 3400);
+    return () => {
+      clearTimeout(hide);
+      clearTimeout(clear);
+    };
+  }, [bulkNotice]);
 
   const runBulk = async (action: "approve" | "reject" | "changes") => {
     if (!selectedIds.length) return;
@@ -515,13 +551,48 @@ function ListPage() {
       setBulkOpen(false);
       setBulkMode("choose");
       setBulkComment("");
+      // Уведомление о результате массовой операции
+      if (action === "approve") {
+        setBulkNotice("Объявления одобрены");
+        setBulkNoticeType("approve");
+      } else if (action === "reject") {
+        setBulkNotice("Объявления отклонены");
+        setBulkNoticeType("reject");
+      } else {
+        setBulkNotice("Объявления отправлены на доработку");
+        setBulkNoticeType("changes");
+      }
     } finally {
       setBulkPending(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-page">
+      {/* Индикатор загрузки/перезагрузки списка */}
+      {isFetching && <div className="progress-strip" aria-hidden="true" />}
+      {bulkNotice && (
+        <div
+          className={`fixed left-1/2 top-6 z-[11000] -translate-x-1/2 transition-all duration-200 ${
+            bulkNoticeVisible
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 -translate-y-2"
+          }`}
+        >
+          {/* Всплывающее уведомление после массового действия */}
+          <div
+            className={`rounded-full px-4 py-2 text-sm font-semibold shadow-md backdrop-blur border ${
+              bulkNoticeType === "reject"
+                ? "bg-rose-50 text-rose-700 border-rose-200 shadow-rose-200/60"
+                : bulkNoticeType === "changes"
+                ? "bg-amber-50 text-amber-700 border-amber-200 shadow-amber-200/60"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+            }`}
+          >
+            {bulkNotice}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
@@ -541,18 +612,21 @@ function ListPage() {
         categoryOptions={categoryOptions}
       />
 
+      {/*состояние загрузки списка */}
       {isLoading && (
         <div className="p-6 bg-white border rounded-2xl border-slate-200 text-slate-500">
           Загружаем данные…
         </div>
       )}
 
+      {/* ошибка запроса списка */}
       {isError && (
         <div className="p-6 border rounded-2xl border-rose-200 bg-rose-50 text-rose-700">
           Не удалось загрузить объявления: {(error as Error).message}
         </div>
       )}
 
+      {/* Отображаем список объявлений и пагинацию */}
       {data && (
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -561,7 +635,7 @@ function ListPage() {
                 key={ad.id}
                 to={`/item/${ad.id}`}
                 state={{ from: `${location.pathname}${location.search}` }}
-                className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                className="card-appear flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="relative h-48 bg-slate-100">
                   <img
@@ -648,11 +722,11 @@ function ListPage() {
 
       {bulkOpen && (
         <div
-          className="fixed -inset-4 z-[9999] m-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+          className="fixed -inset-4 z-[9999] m-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm modal-overlay"
           onClick={() => setBulkOpen(false)}
         >
           <div
-            className="w-full max-w-xl p-5 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-slate-800"
+            className="w-full max-w-xl p-5 bg-white border shadow-2xl modal-content rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -674,6 +748,7 @@ function ListPage() {
             </div>
 
             {bulkMode === "choose" && (
+              //Блок выбора действия перед переходом к форме причин
               <div className="grid gap-2 mt-4 sm:grid-cols-3">
                 <button
                   onClick={() => runBulk("approve")}
@@ -700,6 +775,7 @@ function ListPage() {
             )}
 
             {bulkMode !== "choose" && (
+              //Форма указания причины отклонения/доработки для массового применения
               <div className="mt-4 space-y-3">
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                   {bulkMode === "reject"

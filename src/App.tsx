@@ -5,6 +5,7 @@ import ListPage from "./pages/ListPage";
 import ItemPage from "./pages/ItemPage";
 import StatsPage from "./pages/StatsPage";
 
+// Класс подсветки активных ссылок в шапке
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-full px-3 py-2 text-sm font-semibold transition ${
     isActive
@@ -35,12 +36,15 @@ export const ThemeContext = createContext<ThemeContextType>({
   toggleTheme: () => {},
 });
 
+//Глобальный layout: отвечает за тему, показ инструкции по хоткеям и имитацию «новых объявлений»
 function AppLayout() {
   const queryClient = useQueryClient();
+  //Модалка подсказки по хоткеям (видимость + флаг, что уже видели)
   const [introVisible, setIntroVisible] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean>(() => {
     return localStorage.getItem("hotkeyIntroSeen") === "1";
   });
+  //Тема приложения (персистим в localStorage)
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "dark" || saved === "light") return saved as Theme;
@@ -48,10 +52,13 @@ function AppLayout() {
       ? "dark"
       : "light";
   });
+  //Имитация появления новых объявлений
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [newCount, setNewCount] = useState(0);
 
+  //Открыть модалку подсказки
   const showIntro = () => setIntroVisible(true);
+  //Закрыть модалку и запомнить, что подсказку уже показывали
   const hideIntro = () => {
     setIntroSeen(true);
     localStorage.setItem("hotkeyIntroSeen", "1");
@@ -63,20 +70,24 @@ function AppLayout() {
     [introSeen]
   );
 
+  // переключатель темы (раздаётся через контекст)
   const toggleTheme = () =>
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
+  // имитация real-time: рандомим количество «новых» объявлений и дергаем invalidate на списке
   const openNewModal = () => {
     setNewCount(Math.floor(Math.random() * 4));
     setNewModalOpen(true);
   };
   const closeNewModal = () => setNewModalOpen(false);
   const refreshAds = () => {
+    // просто инвалидация кэша, React Query перезапросит список
     queryClient.invalidateQueries({ queryKey: ["ads"] });
     closeNewModal();
   };
 
   useEffect(() => {
+    // Проставляем класс на html, чтобы заработали темные tailwind-стили
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
@@ -87,6 +98,7 @@ function AppLayout() {
         <div className="min-h-screen transition-colors bg-slate-50 text-slate-900 dark:bg-[#1a1d21] dark:text-slate-50">
           <div className="max-w-6xl px-6 py-6 mx-auto">
             <header className="flex flex-wrap items-center justify-between gap-4">
+              {/* Левая часть шапки: логотип и подпись */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center text-lg font-bold text-white bg-blue-600 h-11 w-11 rounded-2xl">
                   A
@@ -96,6 +108,7 @@ function AppLayout() {
                     Система модерации Авито
                   </p>
                   <p className="flex flex-wrap items-center gap-3 mt-1 text-sm text-slate-500">
+                    {/*Управление: модалка хоткеев, имитация новых объявлений, переключение темы */}
                     <button
                       type="button"
                       onClick={showIntro}
@@ -124,6 +137,7 @@ function AppLayout() {
                 </div>
               </div>
               <nav className="flex flex-wrap items-center gap-2">
+                {/*Навигация по страницам */}
                 <NavLink to="/list" className={navLinkClass}>
                   Список
                 </NavLink>
@@ -133,13 +147,14 @@ function AppLayout() {
               </nav>
             </header>
 
+            {/*Модалка-инструкция по горячим клавишам */}
             {introVisible && (
               <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur modal-overlay"
                 onClick={hideIntro}
               >
                 <div
-                  className="w-full max-w-lg p-6 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
+                  className="modal-content w-full max-w-lg p-6 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -181,13 +196,14 @@ function AppLayout() {
                 </div>
               </div>
             )}
+            {/*Модалка имитации новых объявлений */}
             {newModalOpen && (
               <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 backdrop-blur modal-overlay"
                 onClick={closeNewModal}
               >
                 <div
-                  className="w-full max-w-md p-5 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
+                  className="modal-content w-full max-w-md p-5 space-y-4 bg-white border shadow-2xl rounded-2xl border-slate-200 dark:border-slate-700 dark:bg-[#1a1d21]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -201,8 +217,9 @@ function AppLayout() {
                     новых объявлений.
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Нажмите «Обновить список», чтобы перезагрузить данные. Когда появятся
-                    реальные новые объявления, они будут загружены автоматически.
+                    Нажмите «Обновить список», чтобы перезагрузить данные. Когда
+                    появятся реальные новые объявления, они будут загружены
+                    автоматически.
                   </p>
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -213,7 +230,7 @@ function AppLayout() {
                     </button>
                     <button
                       onClick={refreshAds}
-                      className="px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 rounded-xl bg-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600"
+                      className="px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 bg-blue-600 rounded-xl hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600"
                     >
                       Обновить список
                     </button>
@@ -223,6 +240,7 @@ function AppLayout() {
             )}
 
             <main className="mt-8">
+              {/*Контент маршрутов */}
               <Outlet />
             </main>
           </div>
@@ -235,6 +253,7 @@ function AppLayout() {
 function App() {
   return (
     <Routes>
+      {/*Единый layout оборачивает все страницы */}
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/list" replace />} />
         <Route path="list" element={<ListPage />} />
