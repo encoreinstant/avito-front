@@ -20,10 +20,10 @@ a {
   text-decoration: none;
 }
 
-/* Dark theme overrides for common Tailwind classes */
 :root {
   color-scheme: light;
 }
+/* Переопределяю дефолт классы tailwind если включена темная тема */
 .dark {
   color-scheme: dark;
 }

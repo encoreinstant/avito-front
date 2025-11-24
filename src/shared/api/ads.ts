@@ -8,6 +8,7 @@ import type {
   SortOrder,
 } from '../types';
 
+// Шаблоны причин модерации используются в одиночных и массовых действиях
 export const MODERATION_REASONS = [
   'Запрещенный товар',
   'Неверная категория',
@@ -19,6 +20,7 @@ export const MODERATION_REASONS = [
 
 export type ModerationReason = (typeof MODERATION_REASONS)[number];
 
+// Параметры запросов списка объявлений
 export interface AdsQueryParams {
   page?: number;
   limit?: number;
@@ -31,6 +33,7 @@ export interface AdsQueryParams {
   sortOrder?: SortOrder;
 }
 
+// Собираем query string из параметров, чтобы не городить ручную конкатенацию
 export function buildQueryString(params: AdsQueryParams) {
   const searchParams = new URLSearchParams();
 
@@ -53,6 +56,7 @@ export function buildQueryString(params: AdsQueryParams) {
 }
 
 export const adsApi = {
+  // Получить список объявлений с опциональными фильтрами
   list: async (params: AdsQueryParams, signal?: AbortSignal) => {
     const res = await httpClient.get<AdsListResponse>(`/ads${buildQueryString(params)}`, {
       signal,
@@ -62,14 +66,17 @@ export const adsApi = {
       ads: res.ads.map(normalizeAd),
     };
   },
+  // Получить детальное объявление
   get: async (id: number, signal?: AbortSignal) => {
     const ad = await httpClient.get<Advertisement>(`/ads/${id}`, { signal });
     return normalizeAd(ad);
   },
+  // Одобрить объявление
   approve: (id: number, signal?: AbortSignal) =>
     httpClient.post<{ message: string; ad: Advertisement }>(`/ads/${id}/approve`, undefined, {
       signal,
     }),
+  // Отклонить объявление
   reject: (
     id: number,
     payload: { reason: ModerationReason; comment?: string },
@@ -78,6 +85,7 @@ export const adsApi = {
     httpClient.post<{ message: string; ad: Advertisement }>(`/ads/${id}/reject`, payload, {
       signal,
     }),
+  // Вернуть на доработку
   requestChanges: (
     id: number,
     payload: { reason: ModerationReason; comment?: string },

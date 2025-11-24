@@ -1,10 +1,15 @@
+// Статусы объявления (draft приходит с сервера, мы конвертируем его в pending на клиенте)
 export type AdStatus = 'pending' | 'approved' | 'rejected' | 'draft';
+// Приоритет объявления
 export type Priority = 'normal' | 'urgent';
+// Действия модерации для истории
 export type ModerationAction = 'approved' | 'rejected' | 'requestChanges';
 
+// Поля сортировки и направление
 export type SortBy = 'createdAt' | 'price' | 'priority';
 export type SortOrder = 'asc' | 'desc';
 
+// Продавец
 export interface Seller {
   id: number;
   name: string;
@@ -13,6 +18,7 @@ export interface Seller {
   totalAds: number;
 }
 
+// Запись истории модерации
 export interface ModerationHistory {
   id: number;
   action: ModerationAction;
@@ -23,6 +29,7 @@ export interface ModerationHistory {
   timestamp: string;
 }
 
+// Основная модель объявления
 export interface Advertisement {
   id: number;
   title: string;
@@ -40,6 +47,7 @@ export interface Advertisement {
   updatedAt: string;
 }
 
+// Пагинация ответа списка
 export interface Pagination {
   currentPage: number;
   itemsPerPage: number;
@@ -47,11 +55,13 @@ export interface Pagination {
   totalPages: number;
 }
 
+// Ответ списка объявлений
 export interface AdsListResponse {
   ads: Advertisement[];
   pagination: Pagination;
 }
 
+// Сводка по модерации для /stats
 export interface StatsSummary {
   totalReviewed: number;
   totalReviewedToday: number;
@@ -63,6 +73,7 @@ export interface StatsSummary {
   averageReviewTime: number;
 }
 
+// Точки данных активности по дням
 export interface ActivityData {
   date: string;
   approved: number;
@@ -70,12 +81,14 @@ export interface ActivityData {
   requestChanges: number;
 }
 
+// Распределение решений по статусам
 export interface DecisionsData {
   approved: number;
   rejected: number;
   requestChanges: number;
 }
 
+// Метрики модератора
 export interface ModeratorStats {
   approvalRate: number;
   averageReviewTime: number;
@@ -85,6 +98,7 @@ export interface ModeratorStats {
   totalReviewed: number;
 }
 
+// Профиль модератора
 export interface Moderator {
   id: number;
   name: string;
@@ -94,4 +108,5 @@ export interface Moderator {
   statistics: ModeratorStats;
 }
 
+// Периоды для статистики
 export type Period = 'today' | 'week' | 'month' | 'custom';
