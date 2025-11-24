@@ -6,6 +6,8 @@
 
 ### Вариант 1. Docker Compose (основной)
 
+Находясь в корне проекта (\avito-front) выполняешь команду:
+
 ```bash
 docker compose up --build
 ```
